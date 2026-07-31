@@ -1,0 +1,46 @@
+name: Install LP Offer Banners (WordPress)
+
+# 手動実行専用。ヤマネ整体院 WordPress にオファーバナーを設置します。
+# Secrets: WP_USER, WP_APP_PASSWORD （必要なら WP_SITE も）
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "install=設置まで / media_only=メディア登録のみ"
+        type: choice
+        options: [install, media_only]
+        default: install
+      position:
+        description: "本文への挿入位置"
+        type: choice
+        options: [top, bottom]
+        default: top
+      dry_run:
+        description: "true=対象ページ検出のみ（書き込みしない）"
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      page_map:
+        description: '症状→ページID の明示指定(JSON)。例 {"腰痛":12,"坐骨":34}'
+        type: string
+        default: "{}"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Run installer
+        env:
+          WP_SITE: ${{ secrets.WP_SITE }}
+          WP_USER: ${{ secrets.WP_USER }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          MODE: ${{ inputs.mode }}
+          POSITION: ${{ inputs.position }}
+          DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || '0' }}
+          PAGE_MAP: ${{ inputs.page_map }}
+        run: python3 lp-banners/wp_install.py
