@@ -3,6 +3,11 @@ name: Install LP Offer Banners (WordPress)
 # 手動実行専用。ヤマネ整体院 WordPress にオファーバナーを設置します。
 # Secrets: WP_USER, WP_APP_PASSWORD （必要なら WP_SITE も）
 on:
+  push:
+    branches: [claude/yamaneseitai-symptom-banners-w299oy]
+    paths:
+      - '.github/workflows/install-lp-banners.yml'
+      - 'lp-banners/wp_install.py'
   workflow_dispatch:
     inputs:
       mode:
@@ -25,6 +30,10 @@ on:
         type: string
         default: "{}"
 
+# 最初の確認は "1"（DRY_RUN=検出のみ）。本番設置時に "0" へ変更してpush。
+env:
+  FORCE_DRY: "1"
+
 jobs:
   install:
     runs-on: ubuntu-latest
@@ -41,6 +50,6 @@ jobs:
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
           MODE: ${{ inputs.mode }}
           POSITION: ${{ inputs.position }}
-          DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || '0' }}
+          DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || env.FORCE_DRY }}
           PAGE_MAP: ${{ inputs.page_map }}
         run: python3 lp-banners/wp_install.py
