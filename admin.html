@@ -7,38 +7,44 @@
     <title>勤怠打刻 - 管理画面</title>
     <style>
       :root { --green:#0f766e; --green-d:#0d5f58; --bg1:#ecfdf5; --bg2:#f0f9ff; --line:#e2e8f0; --muted:#64748b; --red:#dc2626; }
-      * { box-sizing: border-box; }
-      body { margin:0; font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#0f172a; background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%); min-height:100vh; }
+      * { box-sizing:border-box; }
+      body { margin:0; font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#0f172a; background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%); min-height:100vh; }
       header { background:#fff; border-bottom:1px solid var(--line); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
       header .title { color:var(--green); font-weight:700; font-size:18px; }
       header a { color:var(--muted); font-size:13px; text-decoration:none; }
-      .wrap { max-width:640px; margin:0 auto; padding:24px 16px 60px; }
-      .card { background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(15,118,110,.08); padding:24px; margin-bottom:20px; }
-      h1 { font-size:20px; color:var(--green); margin:0 0 4px; }
-      .sub { color:var(--muted); font-size:13px; margin:0 0 20px; }
-      label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px; }
-      input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:16px; outline:none; }
-      input:focus { border-color:var(--green); }
-      .row { display:flex; gap:10px; }
-      .row .name { flex:2; } .row .pin { flex:1; }
-      button { cursor:pointer; border:none; border-radius:10px; font-size:15px; font-weight:600; padding:12px 18px; }
+      .wrap { max-width:720px; margin:0 auto; padding:20px 16px 60px; }
+      .card { background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(15,118,110,.08); padding:22px; margin-bottom:18px; }
+      h1 { font-size:19px; color:var(--green); margin:0 0 4px; }
+      .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+      label { display:block; font-size:12px; color:var(--muted); margin:0 0 6px; }
+      input, select { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-size:16px; outline:none; background:#fff; }
+      input:focus, select:focus { border-color:var(--green); }
+      button { cursor:pointer; border:none; border-radius:10px; font-size:15px; font-weight:600; padding:11px 16px; }
       .btn-primary { background:var(--green); color:#fff; }
       .btn-primary:hover { background:var(--green-d); }
       .btn-primary:disabled { opacity:.5; cursor:default; }
-      .btn-del { background:#fef2f2; color:var(--red); padding:8px 12px; font-size:13px; }
+      .btn-sm { background:#f1f5f9; color:#334155; padding:7px 11px; font-size:13px; }
+      .btn-sm:hover { background:#e2e8f0; }
+      .btn-del { background:#fef2f2; color:var(--red); padding:7px 11px; font-size:13px; }
       .btn-del:hover { background:#fee2e2; }
-      ul.staff { list-style:none; margin:16px 0 0; padding:0; }
-      ul.staff li { display:flex; align-items:center; justify-content:space-between; padding:12px 4px; border-bottom:1px solid var(--line); }
-      ul.staff li:last-child { border-bottom:none; }
-      .staff-name { font-size:16px; font-weight:600; }
-      .staff-pin { font-size:12px; color:var(--muted); margin-left:8px; font-weight:400; }
+      table { width:100%; border-collapse:collapse; }
+      th, td { text-align:left; padding:10px 6px; border-bottom:1px solid var(--line); font-size:14px; }
+      th { color:var(--muted); font-size:12px; font-weight:600; }
+      td.num, th.num { text-align:right; }
+      .name-cell { font-weight:600; }
       .empty { color:var(--muted); text-align:center; padding:20px 0; }
-      .msg { padding:12px 14px; border-radius:10px; font-size:14px; margin-top:14px; display:none; }
+      .msg { padding:11px 13px; border-radius:10px; font-size:13px; margin-top:12px; display:none; }
       .msg.ok { background:#f0fdf4; color:#166534; display:block; }
       .msg.err { background:#fef2f2; color:var(--red); display:block; white-space:pre-wrap; }
       .gate { max-width:360px; margin:80px auto; }
-      .hint { color:var(--muted); font-size:12px; margin-top:8px; }
-      .addrow { display:flex; gap:10px; margin-top:8px; }
+      .tabs { display:flex; gap:8px; margin-bottom:18px; }
+      .tab { flex:1; text-align:center; padding:11px; border-radius:10px; background:#fff; color:var(--muted); font-weight:600; cursor:pointer; border:1px solid var(--line); }
+      .tab.active { background:var(--green); color:#fff; border-color:var(--green); }
+      .grid3 { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; align-items:end; }
+      .total-row td { font-weight:700; border-top:2px solid var(--green); background:#f0fdf4; }
+      .month-bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+      .month-bar input { max-width:180px; }
+      @media(max-width:520px){ .grid3{ grid-template-columns:1fr 1fr; } .grid3 .addbtn{ grid-column:1/3; } }
     </style>
   </head>
   <body>
@@ -47,7 +53,7 @@
       <a href="./index.html">打刻画面へ →</a>
     </header>
 
-    <!-- パスワード入力 -->
+    <!-- パスワード -->
     <div id="gate" class="wrap">
       <div class="card gate">
         <h1>管理画面</h1>
@@ -59,147 +65,207 @@
       </div>
     </div>
 
-    <!-- 管理本体 -->
+    <!-- 本体 -->
     <div id="app" class="wrap" style="display:none">
-      <div class="card">
-        <h1>スタッフを登録</h1>
-        <p class="sub">名前を追加すると、打刻画面の「名前を選んでください」に表示されます。PINは任意（4桁など）。</p>
-        <label>名前 と PIN（任意）</label>
-        <div class="addrow">
-          <input class="name" id="newName" placeholder="例：山根" />
-          <input class="pin" id="newPin" placeholder="PIN(任意)" inputmode="numeric" style="max-width:120px" />
-          <button class="btn-primary" id="addBtn" onclick="addStaff()">追加</button>
-        </div>
-        <div id="addMsg" class="msg"></div>
+      <div class="tabs">
+        <div class="tab active" id="tab-staff" onclick="switchTab('staff')">スタッフ管理</div>
+        <div class="tab" id="tab-pay" onclick="switchTab('pay')">給与計算</div>
       </div>
 
-      <div class="card">
-        <h1>登録済みスタッフ</h1>
-        <p class="sub" id="count">読み込み中…</p>
-        <ul class="staff" id="list"></ul>
-        <div id="listMsg" class="msg"></div>
+      <!-- スタッフ管理 -->
+      <div id="view-staff">
+        <div class="card">
+          <h1>スタッフを追加</h1>
+          <p class="sub">名前を追加すると打刻画面の一覧に出ます。PIN・時給は任意。</p>
+          <div class="grid3">
+            <div><label>名前</label><input id="newName" placeholder="例：山根" /></div>
+            <div><label>PIN(任意)</label><input id="newPin" inputmode="numeric" placeholder="例:1234" /></div>
+            <div><label>時給(円/任意)</label><input id="newWage" inputmode="numeric" placeholder="例:1200" /></div>
+            <div class="addbtn"><button class="btn-primary" id="addBtn" onclick="addStaff()">追加</button></div>
+          </div>
+          <div id="addMsg" class="msg"></div>
+        </div>
+        <div class="card">
+          <h1>登録済みスタッフ</h1>
+          <p class="sub" id="count">読み込み中…</p>
+          <table>
+            <thead><tr><th>名前</th><th>PIN</th><th class="num">時給</th><th></th></tr></thead>
+            <tbody id="staffBody"></tbody>
+          </table>
+          <div id="listMsg" class="msg"></div>
+        </div>
+      </div>
+
+      <!-- 給与計算 -->
+      <div id="view-pay" style="display:none">
+        <div class="card">
+          <h1>給与計算</h1>
+          <p class="sub">月を選ぶと、各スタッフの勤務時間 × 時給 で給与を計算します。</p>
+          <div class="month-bar">
+            <input type="month" id="payMonth" />
+            <button class="btn-primary" onclick="calcPay()">計算</button>
+          </div>
+          <table>
+            <thead><tr><th>名前</th><th class="num">出勤</th><th class="num">合計時間</th><th class="num">時給</th><th class="num">給与</th></tr></thead>
+            <tbody id="payBody"><tr><td colspan="5" class="empty">月を選んで「計算」を押してください</td></tr></tbody>
+          </table>
+          <div id="payMsg" class="msg"></div>
+        </div>
       </div>
     </div>
 
     <script>
-      // === 接続設定（このアプリが使っているデータベース） ===
+      // ===== 接続設定（このアプリのデータベース）=====
       const SUPABASE_URL = "https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY = "sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
-      // === 管理画面パスワード（変更したい時はここを書き換え） ===
+      // ===== 管理画面パスワード（変えたい時はここを書き換え）=====
       const ADMIN_PW = "yamane2026";
 
-      const REST = SUPABASE_URL + "/rest/v1/staff_list";
-      const HEADERS = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json",
-      };
+      const REST = SUPABASE_URL + "/rest/v1";
+      const H = { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" };
 
-      function show(el, text, kind) { el.textContent = text; el.className = "msg " + kind; }
-      function hide(el) { el.className = "msg"; }
+      // 勤務時間ロジック（打刻アプリと同じ）
+      const toMin = s => { if(!s) return null; const [h,m]=String(s).split(":").map(Number); return h*60+m; };
+      const workMin = rec => { const n=rec.slots||{}; let r=0;
+        if(toMin(n.am_in)!==null && toMin(n.am_out)!==null) r+=Math.max(0,toMin(n.am_out)-toMin(n.am_in));
+        if(toMin(n.pm_in)!==null && toMin(n.pm_out)!==null) r+=Math.max(0,toMin(n.pm_out)-toMin(n.pm_in));
+        return r; };
+      const fmtHM = m => (m? Math.floor(m/60)+"時間"+String(m%60).padStart(2,"0")+"分" : "0時間00分");
+      const yen = n => "¥"+Math.round(n).toLocaleString("ja-JP");
 
-      function unlock() {
-        const pw = document.getElementById("pw").value;
-        if (pw === ADMIN_PW) {
-          sessionStorage.setItem("kintai_admin", "1");
-          document.getElementById("gate").style.display = "none";
-          document.getElementById("app").style.display = "block";
-          loadStaff();
-        } else {
-          show(document.getElementById("gateMsg"), "パスワードが違います", "err");
-        }
+      const $ = id => document.getElementById(id);
+      const show = (el,t,k) => { el.textContent=t; el.className="msg "+k; };
+      const hide = el => { el.className="msg"; };
+
+      function unlock(){
+        if($("pw").value === ADMIN_PW){
+          sessionStorage.setItem("kintai_admin","1");
+          $("gate").style.display="none"; $("app").style.display="block";
+          initMonth(); loadStaff();
+        } else { show($("gateMsg"),"パスワードが違います","err"); }
       }
-      document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+      $("pw").addEventListener("keydown", e=>{ if(e.key==="Enter") unlock(); });
 
-      async function loadStaff() {
-        const listEl = document.getElementById("list");
-        const countEl = document.getElementById("count");
-        const msgEl = document.getElementById("listMsg");
-        hide(msgEl);
-        try {
-          const res = await fetch(REST + "?select=id,name,pin&order=name", { headers: HEADERS });
-          if (!res.ok) throw new Error("読み込み失敗 (HTTP " + res.status + ")\n" + await res.text());
-          const rows = await res.json();
-          countEl.textContent = rows.length + "人 登録されています";
-          listEl.innerHTML = "";
-          if (rows.length === 0) {
-            listEl.innerHTML = '<li class="empty">まだ登録がありません</li>';
-            return;
+      function switchTab(t){
+        $("tab-staff").classList.toggle("active", t==="staff");
+        $("tab-pay").classList.toggle("active", t==="pay");
+        $("view-staff").style.display = t==="staff" ? "block":"none";
+        $("view-pay").style.display  = t==="pay" ? "block":"none";
+      }
+
+      function initMonth(){
+        // 当月をデフォルト（Date使用OK：ブラウザ側で動く）
+        const d = new Date();
+        $("payMonth").value = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      }
+
+      let staffCache = [];
+      async function loadStaff(){
+        const body=$("staffBody"), cnt=$("count"), msg=$("listMsg"); hide(msg);
+        try{
+          const res = await fetch(REST+"/staff_list?select=*&order=name",{headers:H});
+          if(!res.ok) throw new Error("読み込み失敗 (HTTP "+res.status+")\n"+await res.text());
+          const rows = await res.json(); staffCache = rows;
+          cnt.textContent = rows.length+"人 登録されています";
+          body.innerHTML="";
+          if(!rows.length){ body.innerHTML='<tr><td colspan="4" class="empty">まだ登録がありません</td></tr>'; return; }
+          for(const r of rows){
+            const tr=document.createElement("tr");
+            const tdName=document.createElement("td"); tdName.className="name-cell"; tdName.textContent=r.name;
+            const tdPin=document.createElement("td"); tdPin.textContent=r.pin||"—";
+            const tdWage=document.createElement("td"); tdWage.className="num"; tdWage.textContent=(r.wage!=null?("¥"+Number(r.wage).toLocaleString("ja-JP")):"—");
+            const tdAct=document.createElement("td"); tdAct.className="num";
+            const edit=document.createElement("button"); edit.className="btn-sm"; edit.textContent="編集"; edit.onclick=()=>editStaff(r);
+            const del=document.createElement("button"); del.className="btn-del"; del.textContent="削除"; del.style.marginLeft="6px"; del.onclick=()=>deleteStaff(r.id,r.name);
+            tdAct.appendChild(edit); tdAct.appendChild(del);
+            tr.append(tdName,tdPin,tdWage,tdAct); body.appendChild(tr);
           }
-          for (const r of rows) {
-            const li = document.createElement("li");
-            const left = document.createElement("div");
-            left.innerHTML = '<span class="staff-name"></span>';
-            left.querySelector(".staff-name").textContent = r.name;
-            if (r.pin) {
-              const pinSpan = document.createElement("span");
-              pinSpan.className = "staff-pin";
-              pinSpan.textContent = "PIN: " + r.pin;
-              left.appendChild(pinSpan);
-            }
-            const del = document.createElement("button");
-            del.className = "btn-del";
-            del.textContent = "削除";
-            del.onclick = () => deleteStaff(r.id, r.name);
-            li.appendChild(left);
-            li.appendChild(del);
-            listEl.appendChild(li);
+        }catch(e){ show(msg,e.message,"err"); }
+      }
+
+      async function addStaff(){
+        const name=$("newName").value.trim(), pin=$("newPin").value.trim(), wage=$("newWage").value.trim();
+        const btn=$("addBtn"), msg=$("addMsg"); hide(msg);
+        if(!name){ show(msg,"名前を入力してください","err"); return; }
+        btn.disabled=true;
+        try{
+          const b={name}; if(pin) b.pin=pin; if(wage) b.wage=Number(wage);
+          const res=await fetch(REST+"/staff_list",{method:"POST",headers:{...H,"Prefer":"return=representation"},body:JSON.stringify(b)});
+          if(!res.ok){ const t=await res.text(); throw new Error(wageHint("追加できませんでした (HTTP "+res.status+")\n"+t, t)); }
+          $("newName").value=""; $("newPin").value=""; $("newWage").value="";
+          show(msg,"「"+name+"」を追加しました","ok"); loadStaff();
+        }catch(e){ show(msg,e.message,"err"); } finally{ btn.disabled=false; }
+      }
+
+      async function editStaff(r){
+        const pin=prompt("「"+r.name+"」のPIN（空欄で無し）", r.pin||"");
+        if(pin===null) return;
+        const wageStr=prompt("「"+r.name+"」の時給（円・空欄で無し）", r.wage!=null?String(r.wage):"");
+        if(wageStr===null) return;
+        const msg=$("listMsg"); hide(msg);
+        try{
+          const b={ pin: pin.trim()||null, wage: wageStr.trim()!==""?Number(wageStr.trim()):null };
+          const res=await fetch(REST+"/staff_list?id=eq."+encodeURIComponent(r.id),{method:"PATCH",headers:{...H,"Prefer":"return=representation"},body:JSON.stringify(b)});
+          if(!res.ok){ const t=await res.text(); throw new Error(wageHint("更新できませんでした (HTTP "+res.status+")\n"+t, t)); }
+          loadStaff();
+        }catch(e){ show(msg,e.message,"err"); }
+      }
+
+      async function deleteStaff(id,name){
+        if(!confirm("「"+name+"」を削除しますか？")) return;
+        const msg=$("listMsg"); hide(msg);
+        try{
+          const res=await fetch(REST+"/staff_list?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:H});
+          if(!res.ok) throw new Error("削除できませんでした (HTTP "+res.status+")\n"+await res.text());
+          loadStaff();
+        }catch(e){ show(msg,e.message,"err"); }
+      }
+
+      function wageHint(baseMsg, respText){
+        if(respText && /wage/.test(respText) && /(column|does not exist|schema)/i.test(respText)){
+          return baseMsg+"\n\n▼対処：Supabaseで一度だけ次を実行してください\n（SQL Editor）\nalter table staff_list add column wage integer;";
+        }
+        return baseMsg;
+      }
+
+      async function calcPay(){
+        const month=$("payMonth").value; const body=$("payBody"), msg=$("payMsg"); hide(msg);
+        if(!month){ show(msg,"月を選んでください","err"); return; }
+        body.innerHTML='<tr><td colspan="5" class="empty">計算中…</td></tr>';
+        try{
+          if(!staffCache.length) await loadStaff();
+          const res=await fetch(REST+"/punch_records?select=staff,slots,date&date=like."+month+"*",{headers:H});
+          if(!res.ok) throw new Error("勤務データ取得失敗 (HTTP "+res.status+")\n"+await res.text());
+          const recs=await res.json();
+          const agg={}; // name -> {min, days}
+          for(const rec of recs){ const m=workMin(rec); if(!agg[rec.staff]) agg[rec.staff]={min:0,days:0}; agg[rec.staff].min+=m; if(m>0) agg[rec.staff].days++; }
+          body.innerHTML=""; let grand=0, hasWage=false;
+          const staff = staffCache.length?staffCache:Object.keys(agg).map(n=>({name:n,wage:null}));
+          for(const s of staff){
+            const a=agg[s.name]||{min:0,days:0};
+            const wage=(s.wage!=null?Number(s.wage):null);
+            const pay=(wage!=null? (a.min/60)*wage : null);
+            if(wage!=null){ hasWage=true; grand+=pay; }
+            const tr=document.createElement("tr");
+            tr.innerHTML='<td class="name-cell"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>';
+            tr.children[0].textContent=s.name;
+            tr.children[1].textContent=a.days+"日";
+            tr.children[2].textContent=fmtHM(a.min);
+            tr.children[3].textContent=(wage!=null?("¥"+wage.toLocaleString("ja-JP")):"未設定");
+            tr.children[4].textContent=(pay!=null?yen(pay):"—");
+            body.appendChild(tr);
           }
-        } catch (e) {
-          show(msgEl, e.message, "err");
-        }
+          if(hasWage){
+            const tr=document.createElement("tr"); tr.className="total-row";
+            tr.innerHTML='<td>合計</td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num">'+yen(grand)+'</td>';
+            body.appendChild(tr);
+          }
+          if(!body.children.length) body.innerHTML='<tr><td colspan="5" class="empty">この月の記録がありません</td></tr>';
+        }catch(e){ body.innerHTML=""; show(msg,e.message,"err"); }
       }
 
-      async function addStaff() {
-        const nameEl = document.getElementById("newName");
-        const pinEl = document.getElementById("newPin");
-        const btn = document.getElementById("addBtn");
-        const msgEl = document.getElementById("addMsg");
-        const name = nameEl.value.trim();
-        const pin = pinEl.value.trim();
-        hide(msgEl);
-        if (!name) { show(msgEl, "名前を入力してください", "err"); return; }
-        btn.disabled = true;
-        try {
-          const body = { name };
-          if (pin) body.pin = pin;
-          const res = await fetch(REST, {
-            method: "POST",
-            headers: { ...HEADERS, "Prefer": "return=representation" },
-            body: JSON.stringify(body),
-          });
-          if (!res.ok) throw new Error("追加できませんでした (HTTP " + res.status + ")\n" + await res.text());
-          nameEl.value = ""; pinEl.value = "";
-          show(msgEl, "「" + name + "」を追加しました", "ok");
-          loadStaff();
-        } catch (e) {
-          show(msgEl, e.message, "err");
-        } finally {
-          btn.disabled = false;
-        }
-      }
-
-      async function deleteStaff(id, name) {
-        if (!confirm("「" + name + "」を削除しますか？")) return;
-        const msgEl = document.getElementById("listMsg");
-        hide(msgEl);
-        try {
-          const res = await fetch(REST + "?id=eq." + encodeURIComponent(id), {
-            method: "DELETE",
-            headers: HEADERS,
-          });
-          if (!res.ok) throw new Error("削除できませんでした (HTTP " + res.status + ")\n" + await res.text());
-          loadStaff();
-        } catch (e) {
-          show(msgEl, e.message, "err");
-        }
-      }
-
-      // 同じタブ内で一度入っていれば維持
-      if (sessionStorage.getItem("kintai_admin") === "1") {
-        document.getElementById("gate").style.display = "none";
-        document.getElementById("app").style.display = "block";
-        loadStaff();
+      if(sessionStorage.getItem("kintai_admin")==="1"){
+        $("gate").style.display="none"; $("app").style.display="block"; initMonth(); loadStaff();
       }
     </script>
   </body>
