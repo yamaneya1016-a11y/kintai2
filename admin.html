@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>勤怠打刻 - 管理画面</title>
+    <style>
+      :root { --green:#0f766e; --green-d:#0d5f58; --bg1:#ecfdf5; --bg2:#f0f9ff; --line:#e2e8f0; --muted:#64748b; --red:#dc2626; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#0f172a; background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%); min-height:100vh; }
+      header { background:#fff; border-bottom:1px solid var(--line); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+      header .title { color:var(--green); font-weight:700; font-size:18px; }
+      header a { color:var(--muted); font-size:13px; text-decoration:none; }
+      .wrap { max-width:640px; margin:0 auto; padding:24px 16px 60px; }
+      .card { background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(15,118,110,.08); padding:24px; margin-bottom:20px; }
+      h1 { font-size:20px; color:var(--green); margin:0 0 4px; }
+      .sub { color:var(--muted); font-size:13px; margin:0 0 20px; }
+      label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px; }
+      input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:16px; outline:none; }
+      input:focus { border-color:var(--green); }
+      .row { display:flex; gap:10px; }
+      .row .name { flex:2; } .row .pin { flex:1; }
+      button { cursor:pointer; border:none; border-radius:10px; font-size:15px; font-weight:600; padding:12px 18px; }
+      .btn-primary { background:var(--green); color:#fff; }
+      .btn-primary:hover { background:var(--green-d); }
+      .btn-primary:disabled { opacity:.5; cursor:default; }
+      .btn-del { background:#fef2f2; color:var(--red); padding:8px 12px; font-size:13px; }
+      .btn-del:hover { background:#fee2e2; }
+      ul.staff { list-style:none; margin:16px 0 0; padding:0; }
+      ul.staff li { display:flex; align-items:center; justify-content:space-between; padding:12px 4px; border-bottom:1px solid var(--line); }
+      ul.staff li:last-child { border-bottom:none; }
+      .staff-name { font-size:16px; font-weight:600; }
+      .staff-pin { font-size:12px; color:var(--muted); margin-left:8px; font-weight:400; }
+      .empty { color:var(--muted); text-align:center; padding:20px 0; }
+      .msg { padding:12px 14px; border-radius:10px; font-size:14px; margin-top:14px; display:none; }
+      .msg.ok { background:#f0fdf4; color:#166534; display:block; }
+      .msg.err { background:#fef2f2; color:var(--red); display:block; white-space:pre-wrap; }
+      .gate { max-width:360px; margin:80px auto; }
+      .hint { color:var(--muted); font-size:12px; margin-top:8px; }
+      .addrow { display:flex; gap:10px; margin-top:8px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="title">ヤマネ整体院 — 管理画面</span>
+      <a href="./index.html">打刻画面へ →</a>
+    </header>
+
+    <!-- パスワード入力 -->
+    <div id="gate" class="wrap">
+      <div class="card gate">
+        <h1>管理画面</h1>
+        <p class="sub">パスワードを入力してください</p>
+        <input id="pw" type="password" placeholder="パスワード" autocomplete="off" />
+        <div style="height:12px"></div>
+        <button class="btn-primary" style="width:100%" onclick="unlock()">入る</button>
+        <div id="gateMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <!-- 管理本体 -->
+    <div id="app" class="wrap" style="display:none">
+      <div class="card">
+        <h1>スタッフを登録</h1>
+        <p class="sub">名前を追加すると、打刻画面の「名前を選んでください」に表示されます。PINは任意（4桁など）。</p>
+        <label>名前 と PIN（任意）</label>
+        <div class="addrow">
+          <input class="name" id="newName" placeholder="例：山根" />
+          <input class="pin" id="newPin" placeholder="PIN(任意)" inputmode="numeric" style="max-width:120px" />
+          <button class="btn-primary" id="addBtn" onclick="addStaff()">追加</button>
+        </div>
+        <div id="addMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h1>登録済みスタッフ</h1>
+        <p class="sub" id="count">読み込み中…</p>
+        <ul class="staff" id="list"></ul>
+        <div id="listMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <script>
+      // === 接続設定（このアプリが使っているデータベース） ===
+      const SUPABASE_URL = "https://jzpabxeiibvmntvhrqgq.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
+      // === 管理画面パスワード（変更したい時はここを書き換え） ===
+      const ADMIN_PW = "yamane2026";
+
+      const REST = SUPABASE_URL + "/rest/v1/staff_list";
+      const HEADERS = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+      };
+
+      function show(el, text, kind) { el.textContent = text; el.className = "msg " + kind; }
+      function hide(el) { el.className = "msg"; }
+
+      function unlock() {
+        const pw = document.getElementById("pw").value;
+        if (pw === ADMIN_PW) {
+          sessionStorage.setItem("kintai_admin", "1");
+          document.getElementById("gate").style.display = "none";
+          document.getElementById("app").style.display = "block";
+          loadStaff();
+        } else {
+          show(document.getElementById("gateMsg"), "パスワードが違います", "err");
+        }
+      }
+      document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+
+      async function loadStaff() {
+        const listEl = document.getElementById("list");
+        const countEl = document.getElementById("count");
+        const msgEl = document.getElementById("listMsg");
+        hide(msgEl);
+        try {
+          const res = await fetch(REST + "?select=id,name,pin&order=name", { headers: HEADERS });
+          if (!res.ok) throw new Error("読み込み失敗 (HTTP " + res.status + ")\n" + await res.text());
+          const rows = await res.json();
+          countEl.textContent = rows.length + "人 登録されています";
+          listEl.innerHTML = "";
+          if (rows.length === 0) {
+            listEl.innerHTML = '<li class="empty">まだ登録がありません</li>';
+            return;
+          }
+          for (const r of rows) {
+            const li = document.createElement("li");
+            const left = document.createElement("div");
+            left.innerHTML = '<span class="staff-name"></span>';
+            left.querySelector(".staff-name").textContent = r.name;
+            if (r.pin) {
+              const pinSpan = document.createElement("span");
+              pinSpan.className = "staff-pin";
+              pinSpan.textContent = "PIN: " + r.pin;
+              left.appendChild(pinSpan);
+            }
+            const del = document.createElement("button");
+            del.className = "btn-del";
+            del.textContent = "削除";
+            del.onclick = () => deleteStaff(r.id, r.name);
+            li.appendChild(left);
+            li.appendChild(del);
+            listEl.appendChild(li);
+          }
+        } catch (e) {
+          show(msgEl, e.message, "err");
+        }
+      }
+
+      async function addStaff() {
+        const nameEl = document.getElementById("newName");
+        const pinEl = document.getElementById("newPin");
+        const btn = document.getElementById("addBtn");
+        const msgEl = document.getElementById("addMsg");
+        const name = nameEl.value.trim();
+        const pin = pinEl.value.trim();
+        hide(msgEl);
+        if (!name) { show(msgEl, "名前を入力してください", "err"); return; }
+        btn.disabled = true;
+        try {
+          const body = { name };
+          if (pin) body.pin = pin;
+          const res = await fetch(REST, {
+            method: "POST",
+            headers: { ...HEADERS, "Prefer": "return=representation" },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error("追加できませんでした (HTTP " + res.status + ")\n" + await res.text());
+          nameEl.value = ""; pinEl.value = "";
+          show(msgEl, "「" + name + "」を追加しました", "ok");
+          loadStaff();
+        } catch (e) {
+          show(msgEl, e.message, "err");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function deleteStaff(id, name) {
+        if (!confirm("「" + name + "」を削除しますか？")) return;
+        const msgEl = document.getElementById("listMsg");
+        hide(msgEl);
+        try {
+          const res = await fetch(REST + "?id=eq." + encodeURIComponent(id), {
+            method: "DELETE",
+            headers: HEADERS,
+          });
+          if (!res.ok) throw new Error("削除できませんでした (HTTP " + res.status + ")\n" + await res.text());
+          loadStaff();
+        } catch (e) {
+          show(msgEl, e.message, "err");
+        }
+      }
+
+      // 同じタブ内で一度入っていれば維持
+      if (sessionStorage.getItem("kintai_admin") === "1") {
+        document.getElementById("gate").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        loadStaff();
+      }
+    </script>
+  </body>
+</html>
