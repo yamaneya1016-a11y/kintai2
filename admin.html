@@ -37,13 +37,19 @@
       .msg.ok { background:#f0fdf4; color:#166534; display:block; }
       .msg.err { background:#fef2f2; color:var(--red); display:block; white-space:pre-wrap; }
       .gate { max-width:360px; margin:80px auto; }
-      .tabs { display:flex; gap:8px; margin-bottom:18px; }
-      .tab { flex:1; text-align:center; padding:11px; border-radius:10px; background:#fff; color:var(--muted); font-weight:600; cursor:pointer; border:1px solid var(--line); }
+      .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+      .tab { flex:1; min-width:120px; text-align:center; padding:11px; border-radius:10px; background:#fff; color:var(--muted); font-weight:600; cursor:pointer; border:1px solid var(--line); }
       .tab.active { background:var(--green); color:#fff; border-color:var(--green); }
       .grid3 { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; align-items:end; }
       .total-row td { font-weight:700; border-top:2px solid var(--green); background:#f0fdf4; }
       .month-bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; }
       .month-bar input { max-width:180px; }
+      .ipnow { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px; margin-bottom:16px; }
+      .ipnow .big { font-size:22px; font-weight:700; color:var(--green); letter-spacing:.5px; }
+      .iprow { display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--line); }
+      .iprow:last-child { border-bottom:none; }
+      .ipval { font-size:16px; font-weight:600; }
+      .badge { font-size:11px; background:#dcfce7; color:#166534; padding:2px 8px; border-radius:999px; margin-left:8px; }
       @media(max-width:520px){ .grid3{ grid-template-columns:1fr 1fr; } .grid3 .addbtn{ grid-column:1/3; } }
     </style>
   </head>
@@ -53,7 +59,6 @@
       <a href="./index.html">打刻画面へ →</a>
     </header>
 
-    <!-- パスワード -->
     <div id="gate" class="wrap">
       <div class="card gate">
         <h1>管理画面</h1>
@@ -65,11 +70,11 @@
       </div>
     </div>
 
-    <!-- 本体 -->
     <div id="app" class="wrap" style="display:none">
       <div class="tabs">
         <div class="tab active" id="tab-staff" onclick="switchTab('staff')">スタッフ管理</div>
         <div class="tab" id="tab-pay" onclick="switchTab('pay')">給与計算</div>
+        <div class="tab" id="tab-ip" onclick="switchTab('ip')">打刻できる場所(IP)</div>
       </div>
 
       <!-- スタッフ管理 -->
@@ -112,19 +117,43 @@
           <div id="payMsg" class="msg"></div>
         </div>
       </div>
+
+      <!-- IP設定 -->
+      <div id="view-ip" style="display:none">
+        <div class="card">
+          <h1>打刻できる場所(IP)の設定</h1>
+          <p class="sub">ここに登録したネット回線(IP)からだけ打刻できます。院内Wi-Fiが変わって打刻できなくなったら、院内Wi-Fiでこの画面を開いて「今のIPを許可に追加」を押すだけでOK。</p>
+          <div class="ipnow">
+            <label>今あなたが使っている回線のIP</label>
+            <div class="big" id="curIp">確認中…</div>
+            <div style="height:10px"></div>
+            <button class="btn-primary" id="addCurBtn" onclick="addCurrentIp()">今のIPを許可に追加</button>
+          </div>
+          <label>手動で追加(IPを直接入力)</label>
+          <div style="display:flex;gap:8px">
+            <input id="manualIp" placeholder="例：182.249.17.144" />
+            <button class="btn-sm" onclick="addManualIp()">追加</button>
+          </div>
+          <div id="ipMsg" class="msg"></div>
+        </div>
+        <div class="card">
+          <h1>許可中のIP一覧</h1>
+          <p class="sub" id="ipCount">読み込み中…</p>
+          <div id="ipList"></div>
+          <div id="ipListMsg" class="msg"></div>
+        </div>
+      </div>
     </div>
 
     <script>
-      // ===== 接続設定（このアプリのデータベース）=====
       const SUPABASE_URL = "https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY = "sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
-      // ===== 管理画面パスワード（変えたい時はここを書き換え）=====
       const ADMIN_PW = "yamane2026";
+      const DEFAULT_IPS = ["59.132.150.105","182.249.17.144"]; // 初期値(settings未作成でも打刻できる)
 
       const REST = SUPABASE_URL + "/rest/v1";
       const H = { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" };
 
-      // 勤務時間ロジック（打刻アプリと同じ）
       const toMin = s => { if(!s) return null; const [h,m]=String(s).split(":").map(Number); return h*60+m; };
       const workMin = rec => { const n=rec.slots||{}; let r=0;
         if(toMin(n.am_in)!==null && toMin(n.am_out)!==null) r+=Math.max(0,toMin(n.am_out)-toMin(n.am_in));
@@ -147,17 +176,14 @@
       $("pw").addEventListener("keydown", e=>{ if(e.key==="Enter") unlock(); });
 
       function switchTab(t){
-        $("tab-staff").classList.toggle("active", t==="staff");
-        $("tab-pay").classList.toggle("active", t==="pay");
-        $("view-staff").style.display = t==="staff" ? "block":"none";
-        $("view-pay").style.display  = t==="pay" ? "block":"none";
+        for(const k of ["staff","pay","ip"]){
+          $("tab-"+k).classList.toggle("active", t===k);
+          $("view-"+k).style.display = t===k ? "block":"none";
+        }
+        if(t==="ip") loadIps();
       }
 
-      function initMonth(){
-        // 当月をデフォルト（Date使用OK：ブラウザ側で動く）
-        const d = new Date();
-        $("payMonth").value = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-      }
+      function initMonth(){ const d=new Date(); $("payMonth").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 
       let staffCache = [];
       async function loadStaff(){
@@ -198,10 +224,8 @@
       }
 
       async function editStaff(r){
-        const pin=prompt("「"+r.name+"」のPIN（空欄で無し）", r.pin||"");
-        if(pin===null) return;
-        const wageStr=prompt("「"+r.name+"」の時給（円・空欄で無し）", r.wage!=null?String(r.wage):"");
-        if(wageStr===null) return;
+        const pin=prompt("「"+r.name+"」のPIN（空欄で無し）", r.pin||""); if(pin===null) return;
+        const wageStr=prompt("「"+r.name+"」の時給（円・空欄で無し）", r.wage!=null?String(r.wage):""); if(wageStr===null) return;
         const msg=$("listMsg"); hide(msg);
         try{
           const b={ pin: pin.trim()||null, wage: wageStr.trim()!==""?Number(wageStr.trim()):null };
@@ -222,9 +246,8 @@
       }
 
       function wageHint(baseMsg, respText){
-        if(respText && /wage/.test(respText) && /(column|does not exist|schema)/i.test(respText)){
-          return baseMsg+"\n\n▼対処：Supabaseで一度だけ次を実行してください\n（SQL Editor）\nalter table staff_list add column wage integer;";
-        }
+        if(respText && /wage/.test(respText) && /(column|does not exist|schema)/i.test(respText))
+          return baseMsg+"\n\n▼対処：SupabaseのSQL Editorで一度だけ実行\nalter table staff_list add column wage integer;";
         return baseMsg;
       }
 
@@ -237,7 +260,7 @@
           const res=await fetch(REST+"/punch_records?select=staff,slots,date&date=like."+month+"*",{headers:H});
           if(!res.ok) throw new Error("勤務データ取得失敗 (HTTP "+res.status+")\n"+await res.text());
           const recs=await res.json();
-          const agg={}; // name -> {min, days}
+          const agg={};
           for(const rec of recs){ const m=workMin(rec); if(!agg[rec.staff]) agg[rec.staff]={min:0,days:0}; agg[rec.staff].min+=m; if(m>0) agg[rec.staff].days++; }
           body.innerHTML=""; let grand=0, hasWage=false;
           const staff = staffCache.length?staffCache:Object.keys(agg).map(n=>({name:n,wage:null}));
@@ -248,20 +271,87 @@
             if(wage!=null){ hasWage=true; grand+=pay; }
             const tr=document.createElement("tr");
             tr.innerHTML='<td class="name-cell"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>';
-            tr.children[0].textContent=s.name;
-            tr.children[1].textContent=a.days+"日";
+            tr.children[0].textContent=s.name; tr.children[1].textContent=a.days+"日";
             tr.children[2].textContent=fmtHM(a.min);
             tr.children[3].textContent=(wage!=null?("¥"+wage.toLocaleString("ja-JP")):"未設定");
             tr.children[4].textContent=(pay!=null?yen(pay):"—");
             body.appendChild(tr);
           }
-          if(hasWage){
-            const tr=document.createElement("tr"); tr.className="total-row";
-            tr.innerHTML='<td>合計</td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num">'+yen(grand)+'</td>';
-            body.appendChild(tr);
-          }
+          if(hasWage){ const tr=document.createElement("tr"); tr.className="total-row"; tr.innerHTML='<td>合計</td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num">'+yen(grand)+'</td>'; body.appendChild(tr); }
           if(!body.children.length) body.innerHTML='<tr><td colspan="5" class="empty">この月の記録がありません</td></tr>';
         }catch(e){ body.innerHTML=""; show(msg,e.message,"err"); }
+      }
+
+      /* ===== IP設定 ===== */
+      let currentIp = null;
+      async function detectIp(){
+        try{ const r=await fetch("https://ipv4.icanhazip.com",{cache:"no-store"}); return (await r.text()).trim(); }
+        catch(e){ try{ const r2=await fetch("https://api.ipify.org?format=json"); return (await r2.json()).ip; }catch(e2){ return null; } }
+      }
+      async function getAllowedIps(){
+        try{
+          const res=await fetch(REST+"/settings?key=eq.allowed_ips&select=value",{headers:H});
+          if(res.ok){ const d=await res.json(); if(d&&d[0]&&d[0].value) return String(d[0].value).split(",").map(x=>x.trim()).filter(Boolean); }
+        }catch(e){}
+        return null; // 未設定
+      }
+      async function saveAllowedIps(list){
+        const value=list.join(",");
+        const res=await fetch(REST+"/settings",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify([{key:"allowed_ips",value}])});
+        if(!res.ok){ const t=await res.text(); throw new Error(settingsHint("保存できませんでした (HTTP "+res.status+")\n"+t, t)); }
+      }
+      function settingsHint(baseMsg, respText){
+        if(respText && /settings/.test(respText) && /(relation|does not exist|not find|schema)/i.test(respText))
+          return baseMsg+"\n\n▼対処：SupabaseのSQL Editorで一度だけ実行\ncreate table if not exists settings (key text primary key, value text);";
+        return baseMsg;
+      }
+      async function loadIps(){
+        const msg=$("ipListMsg"); hide(msg); hide($("ipMsg"));
+        $("curIp").textContent="確認中…"; $("ipList").innerHTML=""; $("ipCount").textContent="読み込み中…";
+        currentIp = await detectIp();
+        $("curIp").textContent = currentIp || "取得できませんでした";
+        let list = await getAllowedIps();
+        let usingDefault=false;
+        if(list===null){ list=DEFAULT_IPS.slice(); usingDefault=true; }
+        $("ipCount").textContent = list.length+"件"+(usingDefault?"（まだ保存前の初期値。下で保存すると確定します）":"");
+        const box=$("ipList"); box.innerHTML="";
+        if(!list.length){ box.innerHTML='<div class="empty">許可IPがありません</div>'; }
+        for(const ip of list){
+          const row=document.createElement("div"); row.className="iprow";
+          const left=document.createElement("div"); left.innerHTML='<span class="ipval"></span>';
+          left.querySelector(".ipval").textContent=ip;
+          if(currentIp && ip===currentIp){ const b=document.createElement("span"); b.className="badge"; b.textContent="今ここ"; left.appendChild(b); }
+          const del=document.createElement("button"); del.className="btn-del"; del.textContent="削除"; del.onclick=()=>removeIp(ip);
+          row.append(left,del); box.appendChild(row);
+        }
+        window._ipList = list;
+      }
+      async function addCurrentIp(){
+        const msg=$("ipMsg"); hide(msg);
+        if(!currentIp){ show(msg,"今のIPが取得できませんでした","err"); return; }
+        await addIpVal(currentIp);
+      }
+      async function addManualIp(){
+        const v=$("manualIp").value.trim(); const msg=$("ipMsg"); hide(msg);
+        if(!/^\d{1,3}(\.\d{1,3}){3}$/.test(v)){ show(msg,"IPの形式が正しくありません（例：182.249.17.144）","err"); return; }
+        await addIpVal(v); $("manualIp").value="";
+      }
+      async function addIpVal(ip){
+        const msg=$("ipMsg");
+        try{
+          let list = window._ipList || (await getAllowedIps()) || DEFAULT_IPS.slice();
+          if(list.includes(ip)){ show(msg,ip+" はすでに許可されています","ok"); return; }
+          list.push(ip); await saveAllowedIps(list);
+          show(msg,ip+" を許可に追加しました。これで打刻できます","ok"); loadIps();
+        }catch(e){ show(msg,e.message,"err"); }
+      }
+      async function removeIp(ip){
+        if(!confirm(ip+" を許可から外しますか？（この回線から打刻できなくなります）")) return;
+        const msg=$("ipListMsg"); hide(msg);
+        try{
+          let list = (window._ipList||[]).filter(x=>x!==ip);
+          await saveAllowedIps(list); show(msg,ip+" を外しました","ok"); loadIps();
+        }catch(e){ show(msg,e.message,"err"); }
       }
 
       if(sessionStorage.getItem("kintai_admin")==="1"){
