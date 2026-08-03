@@ -121,7 +121,19 @@
       <!-- IP設定 -->
       <div id="view-ip" style="display:none">
         <div class="card">
-          <h1>打刻できる場所(IP)の設定</h1>
+          <h1>この端末を「打刻OK」に登録（おすすめ・放置で使える）</h1>
+          <p class="sub">院で打刻に使う端末（タブレット/スマホ）で、下のボタンを1回押すだけ。以降その端末は<b>IPに関係なくずっと打刻できます</b>（回線が変わっても止まりません）。未登録の端末は院内ネットからのみ打刻可。院で使う端末それぞれで1回ずつ登録してください。</p>
+          <div class="ipnow">
+            <label>この端末の状態</label>
+            <div class="big" id="devStatus">確認中…</div>
+            <div style="height:10px"></div>
+            <button class="btn-primary" id="regBtn" onclick="registerDevice()">この端末を打刻OKにする</button>
+            <button class="btn-del" id="unregBtn" onclick="unregisterDevice()" style="display:none">登録を解除</button>
+          </div>
+          <div id="devMsg" class="msg"></div>
+        </div>
+        <div class="card">
+          <h1>（予備）打刻できる場所(IP)の設定</h1>
           <p class="sub">ここに登録したネット回線(IP)からだけ打刻できます。院内Wi-Fiが変わって打刻できなくなったら、院内Wi-Fiでこの画面を開いて「今のIPを許可に追加」を押すだけでOK。</p>
           <div class="ipnow">
             <label>今あなたが使っている回線のIP</label>
@@ -305,7 +317,25 @@
           return baseMsg+"\n\n▼対処：SupabaseのSQL Editorで一度だけ実行\ncreate table if not exists settings (key text primary key, value text);";
         return baseMsg;
       }
+      function updateDevStatus(){
+        let on=false; try{ on=localStorage.getItem("kintai_device")==="OK"; }catch(e){}
+        $("devStatus").textContent = on ? "✅ この端末は登録済み（IPに関係なく打刻OK）" : "未登録";
+        $("regBtn").style.display = on ? "none":"inline-block";
+        $("unregBtn").style.display = on ? "inline-block":"none";
+      }
+      function registerDevice(){
+        try{ localStorage.setItem("kintai_device","OK"); }catch(e){}
+        updateDevStatus();
+        show($("devMsg"),"この端末を打刻OKに登録しました。以降この端末はIPが変わっても打刻できます。","ok");
+      }
+      function unregisterDevice(){
+        if(!confirm("この端末の打刻登録を解除しますか？")) return;
+        try{ localStorage.removeItem("kintai_device"); }catch(e){}
+        updateDevStatus(); hide($("devMsg"));
+      }
+
       async function loadIps(){
+        updateDevStatus();
         const msg=$("ipListMsg"); hide(msg); hide($("ipMsg"));
         $("curIp").textContent="確認中…"; $("ipList").innerHTML=""; $("ipCount").textContent="読み込み中…";
         currentIp = await detectIp();
