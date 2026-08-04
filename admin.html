@@ -75,6 +75,7 @@
         <div class="tab active" id="tab-staff" onclick="switchTab('staff')">スタッフ管理</div>
         <div class="tab" id="tab-pay" onclick="switchTab('pay')">給与計算</div>
         <div class="tab" id="tab-ip" onclick="switchTab('ip')">打刻できる場所(IP)</div>
+        <div class="tab" id="tab-manual" onclick="switchTab('manual')">手動で打刻</div>
       </div>
 
       <!-- スタッフ管理 -->
@@ -155,6 +156,29 @@
           <div id="ipListMsg" class="msg"></div>
         </div>
       </div>
+
+      <!-- 手動で打刻 -->
+      <div id="view-manual" style="display:none">
+        <div class="card">
+          <h1>手動で打刻を追加・修正</h1>
+          <p class="sub">アプリが使えなかった日など、実際に働いた時間を手で入れられます。同じ人・同じ日で保存すると上書きされます。時間は入れたぶんだけでOK（例：午前だけ）。</p>
+          <label>スタッフ</label>
+          <select id="mStaff"></select>
+          <div style="height:10px"></div>
+          <label>日付</label>
+          <input type="date" id="mDate" />
+          <div style="height:10px"></div>
+          <div class="grid3" style="grid-template-columns:1fr 1fr;">
+            <div><label>午前 出勤</label><input type="time" id="mAmIn" /></div>
+            <div><label>午前 退勤</label><input type="time" id="mAmOut" /></div>
+            <div><label>午後 出勤</label><input type="time" id="mPmIn" /></div>
+            <div><label>午後 退勤</label><input type="time" id="mPmOut" /></div>
+          </div>
+          <div style="height:14px"></div>
+          <button class="btn-primary" onclick="saveManualPunch()">この内容で保存</button>
+          <div id="mMsg" class="msg"></div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -188,11 +212,12 @@
       $("pw").addEventListener("keydown", e=>{ if(e.key==="Enter") unlock(); });
 
       function switchTab(t){
-        for(const k of ["staff","pay","ip"]){
+        for(const k of ["staff","pay","ip","manual"]){
           $("tab-"+k).classList.toggle("active", t===k);
           $("view-"+k).style.display = t===k ? "block":"none";
         }
         if(t==="ip") loadIps();
+        if(t==="manual") loadManual();
       }
 
       function initMonth(){ const d=new Date(); $("payMonth").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
@@ -292,6 +317,30 @@
           if(hasWage){ const tr=document.createElement("tr"); tr.className="total-row"; tr.innerHTML='<td>合計</td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num">'+yen(grand)+'</td>'; body.appendChild(tr); }
           if(!body.children.length) body.innerHTML='<tr><td colspan="5" class="empty">この月の記録がありません</td></tr>';
         }catch(e){ body.innerHTML=""; show(msg,e.message,"err"); }
+      }
+
+      /* ===== 手動で打刻 ===== */
+      function loadManual(){
+        const sel=$("mStaff"), cur=sel.value;
+        if(!staffCache.length){ loadStaff().then(loadManual); return; }
+        sel.innerHTML="";
+        for(const s of staffCache){ const o=document.createElement("option"); o.value=s.name; o.textContent=s.name; sel.appendChild(o); }
+        if(cur) sel.value=cur;
+        if(!$("mDate").value){ const d=new Date(); $("mDate").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+      }
+      async function saveManualPunch(){
+        const name=$("mStaff").value, date=$("mDate").value, msg=$("mMsg"); hide(msg);
+        const am_in=$("mAmIn").value, am_out=$("mAmOut").value, pm_in=$("mPmIn").value, pm_out=$("mPmOut").value;
+        if(!name){ show(msg,"スタッフを選んでください","err"); return; }
+        if(!date){ show(msg,"日付を選んでください","err"); return; }
+        if(!am_in&&!am_out&&!pm_in&&!pm_out){ show(msg,"時間を1つ以上入れてください","err"); return; }
+        const slots={}; if(am_in)slots.am_in=am_in; if(am_out)slots.am_out=am_out; if(pm_in)slots.pm_in=pm_in; if(pm_out)slots.pm_out=pm_out;
+        const hasAm=am_in||am_out, hasPm=pm_in||pm_out; const pattern=(hasAm&&hasPm)?"full":(hasPm?"pm":"am");
+        try{
+          const res=await fetch(REST+"/punch_records?on_conflict=date,staff",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify([{date,staff:name,pattern,slots}])});
+          if(!res.ok) throw new Error("保存できませんでした (HTTP "+res.status+")\n"+await res.text());
+          show(msg,name+" の "+date+" を保存しました（履歴・給与計算に反映されます）","ok");
+        }catch(e){ show(msg,e.message,"err"); }
       }
 
       /* ===== IP設定 ===== */
