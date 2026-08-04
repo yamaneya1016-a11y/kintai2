@@ -161,18 +161,17 @@
       <div id="view-manual" style="display:none">
         <div class="card">
           <h1>手動で打刻を追加・修正</h1>
-          <p class="sub">アプリが使えなかった日など、実際に働いた時間を手で入れられます。同じ人・同じ日で保存すると上書きされます。時間は入れたぶんだけでOK（例：午前だけ）。</p>
+          <p class="sub">アプリが使えなかった日など、実際に働いた時間を手で入れられます。同じ人・同じ日で保存すると上書きされます。実働＝退勤−出勤−休憩(分)。</p>
           <label>スタッフ</label>
           <select id="mStaff"></select>
           <div style="height:10px"></div>
           <label>日付</label>
           <input type="date" id="mDate" />
           <div style="height:10px"></div>
-          <div class="grid3" style="grid-template-columns:1fr 1fr;">
-            <div><label>午前 出勤</label><input type="time" id="mAmIn" /></div>
-            <div><label>午前 退勤</label><input type="time" id="mAmOut" /></div>
-            <div><label>午後 出勤</label><input type="time" id="mPmIn" /></div>
-            <div><label>午後 退勤</label><input type="time" id="mPmOut" /></div>
+          <div class="grid3" style="grid-template-columns:1fr 1fr 1fr;">
+            <div><label>出勤</label><input type="time" id="mIn" /></div>
+            <div><label>退勤</label><input type="time" id="mOut" /></div>
+            <div><label>休憩(分)</label><input type="number" id="mBreak" inputmode="numeric" placeholder="例:60" /></div>
           </div>
           <div style="height:14px"></div>
           <button class="btn-primary" onclick="saveManualPunch()">この内容で保存</button>
@@ -191,7 +190,11 @@
       const H = { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" };
 
       const toMin = s => { if(!s) return null; const [h,m]=String(s).split(":").map(Number); return h*60+m; };
-      const workMin = rec => { const n=rec.slots||{}; let r=0;
+      const workMin = rec => { const n=rec.slots||{};
+        if(n.in||n.out){ const i=toMin(n.in),o=toMin(n.out); if(i==null||o==null) return 0; let w=Math.max(0,o-i);
+          if(Array.isArray(n.breaks)) for(const b of n.breaks){ const bs=toMin(b.s),be=toMin(b.e); if(bs!=null&&be!=null) w-=Math.max(0,be-bs); }
+          if(n.break_min) w-=Number(n.break_min)||0; return Math.max(0,w); }
+        let r=0;
         if(toMin(n.am_in)!==null && toMin(n.am_out)!==null) r+=Math.max(0,toMin(n.am_out)-toMin(n.am_in));
         if(toMin(n.pm_in)!==null && toMin(n.pm_out)!==null) r+=Math.max(0,toMin(n.pm_out)-toMin(n.pm_in));
         return r; };
@@ -330,14 +333,13 @@
       }
       async function saveManualPunch(){
         const name=$("mStaff").value, date=$("mDate").value, msg=$("mMsg"); hide(msg);
-        const am_in=$("mAmIn").value, am_out=$("mAmOut").value, pm_in=$("mPmIn").value, pm_out=$("mPmOut").value;
+        const inT=$("mIn").value, outT=$("mOut").value, brk=$("mBreak").value.trim();
         if(!name){ show(msg,"スタッフを選んでください","err"); return; }
         if(!date){ show(msg,"日付を選んでください","err"); return; }
-        if(!am_in&&!am_out&&!pm_in&&!pm_out){ show(msg,"時間を1つ以上入れてください","err"); return; }
-        const slots={}; if(am_in)slots.am_in=am_in; if(am_out)slots.am_out=am_out; if(pm_in)slots.pm_in=pm_in; if(pm_out)slots.pm_out=pm_out;
-        const hasAm=am_in||am_out, hasPm=pm_in||pm_out; const pattern=(hasAm&&hasPm)?"full":(hasPm?"pm":"am");
+        if(!inT&&!outT){ show(msg,"出勤または退勤の時間を入れてください","err"); return; }
+        const slots={breaks:[]}; if(inT)slots.in=inT; if(outT)slots.out=outT; if(brk!=="")slots.break_min=Number(brk);
         try{
-          const res=await fetch(REST+"/punch_records?on_conflict=date,staff",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify([{date,staff:name,pattern,slots}])});
+          const res=await fetch(REST+"/punch_records?on_conflict=date,staff",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify([{date,staff:name,pattern:"day",slots}])});
           if(!res.ok) throw new Error("保存できませんでした (HTTP "+res.status+")\n"+await res.text());
           show(msg,name+" の "+date+" を保存しました（履歴・給与計算に反映されます）","ok");
         }catch(e){ show(msg,e.message,"err"); }
