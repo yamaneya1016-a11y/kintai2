@@ -56,7 +56,7 @@
     <div class="wrap" id="app"></div>
 
     <script>
-      const BUILD="2";
+      const BUILD="3";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL="https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY="sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";

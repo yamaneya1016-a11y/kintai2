@@ -79,6 +79,7 @@
         <div class="tab" id="tab-pay" onclick="switchTab('pay')">給与計算</div>
         <div class="tab" id="tab-ip" onclick="switchTab('ip')">打刻できる場所(IP)</div>
         <div class="tab" id="tab-manual" onclick="switchTab('manual')">手動で打刻</div>
+        <div class="tab" id="tab-records" onclick="switchTab('records')">打刻記録</div>
       </div>
 
       <!-- スタッフ管理 -->
@@ -181,10 +182,27 @@
           <div id="mMsg" class="msg"></div>
         </div>
       </div>
+
+      <!-- 打刻記録 -->
+      <div id="view-records" style="display:none">
+        <div class="card">
+          <h1>打刻記録</h1>
+          <p class="sub">誰が何時に出勤・休憩・退勤したかを時刻で確認できます（店長用・PIN不要）。</p>
+          <div class="month-bar">
+            <input type="month" id="recMonth" />
+            <button class="btn-primary" onclick="loadRecords()">表示</button>
+          </div>
+          <table>
+            <thead><tr><th>日付</th><th>名前</th><th>出勤</th><th>退勤</th><th>休憩</th><th class="num">実働</th></tr></thead>
+            <tbody id="recBody"><tr><td colspan="6" class="empty">月を選んで「表示」を押してください</td></tr></tbody>
+          </table>
+          <div id="recMsg" class="msg"></div>
+        </div>
+      </div>
     </div>
 
     <script>
-      const BUILD="2";
+      const BUILD="3";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL = "https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY = "sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
@@ -220,12 +238,13 @@
       $("pw").addEventListener("keydown", e=>{ if(e.key==="Enter") unlock(); });
 
       function switchTab(t){
-        for(const k of ["staff","pay","ip","manual"]){
+        for(const k of ["staff","pay","ip","manual","records"]){
           $("tab-"+k).classList.toggle("active", t===k);
           $("view-"+k).style.display = t===k ? "block":"none";
         }
         if(t==="ip") loadIps();
         if(t==="manual") loadManual();
+        if(t==="records"){ if(!$("recMonth").value){ const d=new Date(); $("recMonth").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); } loadRecords(); }
       }
 
       function initMonth(){ const d=new Date(); $("payMonth").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
@@ -324,6 +343,38 @@
           }
           if(hasWage){ const tr=document.createElement("tr"); tr.className="total-row"; tr.innerHTML='<td>合計</td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num">'+yen(grand)+'</td>'; body.appendChild(tr); }
           if(!body.children.length) body.innerHTML='<tr><td colspan="5" class="empty">この月の記録がありません</td></tr>';
+        }catch(e){ body.innerHTML=""; show(msg,e.message,"err"); }
+      }
+
+      /* ===== 打刻記録（閲覧） ===== */
+      function brkText(n){
+        if(Array.isArray(n.breaks)&&n.breaks.length) return n.breaks.map(b=>b.s?(b.s+(b.e?"〜"+b.e:"〜(中)")):"").filter(Boolean).join(" / ")||"—";
+        if(n.break_min) return "計"+n.break_min+"分";
+        if(n.am_out&&n.pm_in) return n.am_out+"〜"+n.pm_in;
+        return "—";
+      }
+      async function loadRecords(){
+        const month=$("recMonth").value, body=$("recBody"), msg=$("recMsg"); hide(msg);
+        if(!month){ show(msg,"月を選んでください","err"); return; }
+        body.innerHTML='<tr><td colspan="6" class="empty">読み込み中…</td></tr>';
+        try{
+          const res=await fetch(REST+"/punch_records?select=*&date=like."+month+"*&order=date.desc",{headers:H});
+          if(!res.ok) throw new Error("取得失敗 (HTTP "+res.status+")\n"+await res.text());
+          const rows=await res.json();
+          if(!rows.length){ body.innerHTML='<tr><td colspan="6" class="empty">この月の記録がありません</td></tr>'; return; }
+          body.innerHTML="";
+          for(const r of rows){ const n=r.slots||{};
+            const inT=n.in||n.am_in||"—", outT=n.out||n.pm_out||n.am_out||"—";
+            const tr=document.createElement("tr");
+            tr.innerHTML='<td></td><td class="name-cell"></td><td></td><td></td><td></td><td class="num"></td>';
+            tr.children[0].textContent=r.date.slice(5);
+            tr.children[1].textContent=r.staff;
+            tr.children[2].textContent=inT;
+            tr.children[3].textContent=outT;
+            tr.children[4].textContent=brkText(n);
+            tr.children[5].textContent=fmtHM(workMin(r));
+            body.appendChild(tr);
+          }
         }catch(e){ body.innerHTML=""; show(msg,e.message,"err"); }
       }
 
