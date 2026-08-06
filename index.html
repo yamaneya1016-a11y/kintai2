@@ -56,7 +56,7 @@
     <div class="wrap" id="app"></div>
 
     <script>
-      const BUILD="1";
+      const BUILD="2";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL="https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY="sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
@@ -178,7 +178,7 @@
         if(!recs.length){html+='<div class="hint">まだ記録がありません</div>';}
         else{html+='<table><thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th></tr></thead><tbody>';
           for(const r of recs){const n=r.slots||{};let inT=n.in||n.am_in||"—";let outT=n.out||n.pm_out||n.am_out||"—";
-            let brk="—";if(Array.isArray(n.breaks)&&n.breaks.length){let bm=0;for(const b of n.breaks){const bs=toMin(b.s),be=toMin(b.e);if(bs!=null&&be!=null)bm+=Math.max(0,be-bs);}brk=bm?fmtHM(bm):"—";}else if(n.break_min){brk=fmtHM(Number(n.break_min));}
+            let brk="—";if(Array.isArray(n.breaks)&&n.breaks.length){brk=n.breaks.map(b=>b.s?(b.s+(b.e?"〜"+b.e:"〜(中)")):"").filter(Boolean).join(" / ")||"—";}else if(n.break_min){brk="計"+n.break_min+"分";}else if(n.am_out&&n.pm_in){brk=n.am_out+"〜"+n.pm_in;}
             html+='<tr><td>'+esc(r.date.slice(5))+'</td><td>'+esc(inT)+'</td><td>'+esc(outT)+'</td><td>'+brk+'</td><td>'+fmtHM(workMin(r))+'</td></tr>';}
           html+='</tbody></table>';}
         $("body").innerHTML=html;
