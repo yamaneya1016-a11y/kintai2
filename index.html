@@ -50,13 +50,13 @@
   </head>
   <body>
     <header>
-      <span class="title">ヤマネ整体院</span>
+      <span class="title">ヤマネ整体院 <span id="store" style="font-size:13px;color:#64748b;font-weight:600"></span></span>
       <span class="clock" id="clock"></span>
     </header>
     <div class="wrap" id="app"></div>
 
     <script>
-      const BUILD="3";
+      const BUILD="4";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL="https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY="sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
@@ -81,23 +81,37 @@
       tick();setInterval(tick,10000);
 
       // 端末登録チェック
-      function deviceOK(){const h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return true;try{return localStorage.getItem("kintai_device")==="OK";}catch(e){return false;}}
+      // 新方式: setup.html で店舗名を登録した端末(kintai_dev2)だけが打刻できる。
+      // 旧方式(kintai_device="OK")はスタッフ個人のスマホにも入っており自宅から打刻できてしまうため廃止。
+      // ただし移行期間として GRACE_UNTIL までは旧方式も通す（切替日に全員打刻不能になるのを防ぐ）。
+      const GRACE_UNTIL="2026-08-31";
+      const STORES=["たつの","赤穂"];
+      function deviceStore(){try{const v=localStorage.getItem("kintai_dev2");return STORES.includes(v)?v:null;}catch(e){return null;}}
+      function legacyOK(){try{return localStorage.getItem("kintai_device")==="OK";}catch(e){return false;}}
+      function inGrace(){return todayStr()<=GRACE_UNTIL;}
+      function deviceOK(){const h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return true;if(deviceStore())return true;return legacyOK()&&inGrace();}
 
       let staff=[];
       async function loadStaff(){const r=await fetch(REST+"/staff_list?select=id,name,pin&order=name",{headers:H});if(!r.ok)throw new Error("読み込み失敗");return await r.json();}
       async function getToday(name){const r=await fetch(REST+"/punch_records?select=*&date=eq."+todayStr()+"&staff=eq."+encodeURIComponent(name),{headers:H});if(!r.ok)throw new Error("取得失敗");const a=await r.json();return a[0]||null;}
       async function getMonth(name){const mo=todayStr().slice(0,7);const r=await fetch(REST+"/punch_records?select=*&staff=eq."+encodeURIComponent(name)+"&date=like."+mo+"*&order=date.desc",{headers:H});if(!r.ok)throw new Error("取得失敗");return await r.json();}
-      async function saveRec(name,slots){const body=[{date:todayStr(),staff:name,pattern:"day",slots}];const r=await fetch(REST+"/punch_records?on_conflict=date,staff",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify(body)});if(!r.ok)throw new Error("保存できませんでした\n"+await r.text());}
+      async function saveRec(name,slots){const st=deviceStore();const s2=Object.assign({},slots);if(st)s2.store=st;const body=[{date:todayStr(),staff:name,pattern:"day",slots:s2}];const r=await fetch(REST+"/punch_records?on_conflict=date,staff",{method:"POST",headers:{...H,"Prefer":"resolution=merge-duplicates,return=representation"},body:JSON.stringify(body)});if(!r.ok)throw new Error("保存できませんでした\n"+await r.text());}
 
       // ===== 画面 =====
       function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 
       async function renderTop(){
+        const store=deviceStore();
+        $("store").textContent = store ? store+"店" : "";
         if(!deviceOK()){
-          $("app").innerHTML='<div class="card gate"><h1>この端末では打刻できません</h1><p class="sub">店舗の登録された端末で打刻してください。<br>（店長へ：管理画面→「打刻できる場所(IP)」→「この端末を打刻OKにする」で登録）</p></div>';
+          $("app").innerHTML='<div class="card gate"><h1>この端末では打刻できません</h1><p class="sub">打刻はお店に置いてある打刻用の端末からお願いします。<br>個人のスマホからは打刻できません。<br><br>（店長へ：店の端末で setup.html を開いて登録してください）</p></div>';
           return;
         }
-        $("app").innerHTML='<div class="card"><h1>名前を選んでください</h1><div id="list"><div class="hint">読み込み中…</div></div></div>';
+        let banner="";
+        if(!store && legacyOK()){
+          banner='<div class="card" style="background:#fffbeb;border:1px solid #fde68a"><b style="color:#b45309">お知らせ</b><p class="sub" style="margin:6px 0 0">この端末（個人のスマホ）での打刻は<b>'+GRACE_UNTIL.slice(5).replace("-","/").replace(/^0/,"")+'まで</b>です。<br>9月1日からは、お店に置いてある打刻用の端末で打刻してください。</p></div>';
+        }
+        $("app").innerHTML=banner+'<div class="card"><h1>名前を選んでください</h1><div id="list"><div class="hint">読み込み中…</div></div></div>';
         try{ staff=await loadStaff(); }catch(e){ $("list").innerHTML='<div class="hint">読み込みに失敗しました</div>'; return; }
         const list=$("list");
         if(!staff.length){ list.innerHTML='<div class="hint">管理画面でスタッフを登録してください</div>'; return; }

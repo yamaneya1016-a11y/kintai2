@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <title>打刻端末の登録</title>
+    <style>
+      :root{--green:#0f766e;--green-d:#0d5f58;--bg1:#ecfdf5;--bg2:#f0f9ff;--line:#e2e8f0;--muted:#64748b;--red:#dc2626;}
+      *{box-sizing:border-box;}
+      body{margin:0;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;color:#0f172a;background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);min-height:100vh;}
+      header{background:#fff;border-bottom:1px solid var(--line);padding:14px 18px;}
+      header .title{color:var(--green);font-weight:700;font-size:17px;}
+      .wrap{max-width:520px;margin:0 auto;padding:20px 16px 60px;}
+      .card{background:#fff;border-radius:18px;box-shadow:0 4px 24px rgba(15,118,110,.08);padding:22px;margin-bottom:16px;}
+      h1{font-size:19px;color:var(--green);margin:0 0 4px;}
+      .sub{color:var(--muted);font-size:13px;line-height:1.7;margin:0 0 14px;}
+      button{cursor:pointer;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 18px;width:100%;}
+      .btn-green{background:var(--green);color:#fff;}.btn-green:active{background:var(--green-d);}
+      .btn-gray{background:#f1f5f9;color:#334155;}
+      .btn-del{background:#fff;color:var(--red);border:1px solid #fecaca;}
+      input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font-size:16px;}
+      .state{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;margin-bottom:14px;}
+      .state .big{font-size:20px;font-weight:800;margin-top:4px;}
+      .lbl{color:var(--muted);font-size:12px;}
+      .msg{padding:11px 13px;border-radius:10px;font-size:14px;margin-top:12px;display:none;white-space:pre-wrap;}
+      .msg.ok{background:#f0fdf4;color:#166534;display:block;}.msg.err{background:#fef2f2;color:var(--red);display:block;}
+      .stores{display:flex;gap:10px;margin-bottom:12px;}
+      .stores button{background:#f8fafc;border:2px solid var(--line);color:#0f172a;}
+      .stores button.sel{border-color:var(--green);background:#ecfdf5;color:var(--green);}
+      .gate{max-width:420px;margin:60px auto;}
+    </style>
+  </head>
+  <body>
+    <header><span class="title">打刻端末の登録（店長用）</span></header>
+    <div class="wrap">
+      <div id="gate" class="card gate">
+        <h1>合言葉を入力してください</h1>
+        <p class="sub">この画面はお店の打刻用端末を登録するためのものです。スタッフには配布しないでください。</p>
+        <input id="pw" type="password" placeholder="合言葉" autocomplete="off" />
+        <div style="height:10px"></div>
+        <button class="btn-green" onclick="unlock()">開く</button>
+        <div id="gateMsg" class="msg"></div>
+      </div>
+
+      <div id="app" style="display:none">
+        <div class="card">
+          <h1>この端末の状態</h1>
+          <div class="state">
+            <span class="lbl">今の設定</span>
+            <div class="big" id="devStatus">確認中…</div>
+          </div>
+          <p class="sub">この端末を、どちらのお店の打刻機にしますか？<br>選んでから下のボタンを押してください。1回押せば、以降ずっとその端末で打刻できます。</p>
+          <div class="stores">
+            <button id="b-たつの" onclick="pick('たつの')">たつの店</button>
+            <button id="b-赤穂" onclick="pick('赤穂')">赤穂店</button>
+          </div>
+          <button class="btn-green" onclick="register()">この端末を打刻機にする</button>
+          <div style="height:10px"></div>
+          <button class="btn-del" onclick="unregister()">この端末の登録を解除</button>
+          <div id="msg" class="msg"></div>
+        </div>
+        <div class="card">
+          <h1>使い方のメモ</h1>
+          <p class="sub">
+            ・登録した端末は、打刻画面（<a href="./">こちら</a>）を開くだけで打刻できます。ホーム画面に追加しておくと便利です。<br>
+            ・登録していない端末（スタッフ個人のスマホなど）では打刻できません。<br>
+            ・スタッフ個人のスマホでの打刻は<b>2026年8月31日まで</b>使えます。9月1日からはお店の端末だけになります。<br>
+            ・どちらの店で打刻したかは記録に残るので、月末の給与計算で店ごとに分けられます。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const SETUP_PW="setup1016";
+      const STORES=["たつの","赤穂"];
+      const $=id=>document.getElementById(id);
+      let picked=null;
+
+      function show(el,t,cls){el.textContent=t;el.className="msg "+cls;}
+      function hide(el){el.className="msg";}
+
+      function unlock(){
+        if($("pw").value===SETUP_PW){
+          sessionStorage.setItem("kintai_setup","1");
+          $("gate").style.display="none"; $("app").style.display="block";
+          updateStatus();
+        } else { show($("gateMsg"),"合言葉が違います","err"); }
+      }
+      $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
+
+      function current(){try{const v=localStorage.getItem("kintai_dev2");return STORES.includes(v)?v:null;}catch(e){return null;}}
+      function legacy(){try{return localStorage.getItem("kintai_device")==="OK";}catch(e){return false;}}
+
+      function updateStatus(){
+        const c=current();
+        $("devStatus").textContent = c ? "✅ "+c+"店の打刻機として登録済み"
+          : (legacy() ? "⚠️ 旧方式のまま（8/31まで打刻できます）" : "未登録（打刻できません）");
+        for(const s of STORES) $("b-"+s).classList.toggle("sel", picked ? picked===s : c===s);
+      }
+      function pick(s){ picked=s; updateStatus(); }
+
+      function register(){
+        const s=picked||current();
+        if(!s){ show($("msg"),"先に「たつの店」か「赤穂店」を選んでください","err"); return; }
+        try{
+          localStorage.setItem("kintai_dev2",s);
+          localStorage.removeItem("kintai_device"); // 旧方式の印は消しておく
+        }catch(e){ show($("msg"),"この端末では保存できませんでした（プライベートブラウズを解除してお試しください）","err"); return; }
+        picked=null; updateStatus();
+        show($("msg"),s+"店の打刻機として登録しました。打刻画面を開けば打刻できます。","ok");
+      }
+      function unregister(){
+        if(!confirm("この端末の打刻登録を解除しますか？")) return;
+        try{ localStorage.removeItem("kintai_dev2"); localStorage.removeItem("kintai_device"); }catch(e){}
+        picked=null; updateStatus(); show($("msg"),"登録を解除しました。この端末では打刻できません。","ok");
+      }
+
+      if(sessionStorage.getItem("kintai_setup")==="1"){
+        $("gate").style.display="none"; $("app").style.display="block"; updateStatus();
+      }
+    </script>
+  </body>
+</html>
