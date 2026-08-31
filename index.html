@@ -56,7 +56,7 @@
     <div class="wrap" id="app"></div>
 
     <script>
-      const BUILD="4";
+      const BUILD="5";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL="https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY="sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
@@ -84,7 +84,7 @@
       // 新方式: setup.html で店舗名を登録した端末(kintai_dev2)だけが打刻できる。
       // 旧方式(kintai_device="OK")はスタッフ個人のスマホにも入っており自宅から打刻できてしまうため廃止。
       // ただし移行期間として GRACE_UNTIL までは旧方式も通す（切替日に全員打刻不能になるのを防ぐ）。
-      const GRACE_UNTIL="2026-08-31";
+      const GRACE_UNTIL="2026-09-30";
       const STORES=["たつの","赤穂"];
       function deviceStore(){try{const v=localStorage.getItem("kintai_dev2");return STORES.includes(v)?v:null;}catch(e){return null;}}
       function legacyOK(){try{return localStorage.getItem("kintai_device")==="OK";}catch(e){return false;}}
