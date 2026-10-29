@@ -56,7 +56,7 @@
     <div class="wrap" id="app"></div>
 
     <script>
-      const BUILD="6";
+      const BUILD="7";
       (async function(){try{const r=await fetch("./version.txt?_="+Date.now(),{cache:"no-store"});if(r.ok){const v=(await r.text()).trim();if(v&&v!==BUILD&&sessionStorage.getItem("kv")!==v){sessionStorage.setItem("kv",v);location.replace(location.pathname+"?v="+encodeURIComponent(v));return;}}}catch(e){}})();
       const SUPABASE_URL="https://jzpabxeiibvmntvhrqgq.supabase.co";
       const SUPABASE_KEY="sb_publishable_qt5siXfhpm_NsgpMZxIL0w_YALYpb6B";
@@ -156,6 +156,11 @@
         return "working";
       }
 
+      // 誤打刻対策：打刻直後3秒は次の打刻を受け付けない／10分未満は押し間違いとして扱う
+      let lockUntil=0;
+      const LOCK_MS=3000;
+      const SHORT_MIN=10;
+
       function drawPunch(s,rec){
         const n=(rec&&rec.slots)||{};const st=stateOf(rec);const body=$("body");
         let badge={before:['b-before','出勤前'],working:['b-work','勤務中'],onbreak:['b-break','休憩中'],done:['b-done','退勤済み']}[st];
@@ -170,14 +175,40 @@
         if(st==="before"){ btns='<button class="btn-green" id="in">出勤</button>'; }
         else if(st==="working"){ btns='<div class="row2"><button class="btn-amber" id="bs">休憩に入る</button><button class="btn-red" id="out">退勤</button></div>'; }
         else if(st==="onbreak"){ btns='<button class="btn-green" id="be">休憩から戻る</button>'; }
-        else if(st==="done"){ btns='<div class="hint">本日の打刻は完了しています。おつかれさまでした！</div><button class="btn-gray" id="home">トップに戻る</button>'; }
+        else if(st==="done"){
+          btns='<div class="hint">本日の打刻は完了しています。おつかれさまでした！</div>';
+          // 実働が極端に短い＝押し間違いの可能性が高いので、本人が取り消せるようにする
+          if(workMin(rec)<SHORT_MIN){ btns+='<button class="btn-amber" id="undo">押し間違えた（退勤を取り消す）</button><div style="height:10px"></div>'; }
+          btns+='<button class="btn-gray" id="home">トップに戻る</button>';
+        }
         body.innerHTML=info+btns;
-        const act=async(fn)=>{try{await fn();const r=await getToday(s.name);drawPunch(s,r);flash("打刻しました");}catch(e){err(e.message);}};
+        const act=async(fn)=>{
+          if(Date.now()<lockUntil) return;          // 連打・二度押しは受け付けない
+          lockUntil=Date.now()+LOCK_MS;
+          try{await fn();const r=await getToday(s.name);drawPunch(s,r);flash("打刻しました");}
+          catch(e){lockUntil=0;err(e.message);}
+        };
         if($("in"))$("in").onclick=()=>act(()=>saveRec(s.name,{in:nowHM(),out:null,breaks:[]}));
         if($("bs"))$("bs").onclick=()=>act(()=>{const b=(n.breaks||[]).slice();b.push({s:nowHM(),e:null});return saveRec(s.name,Object.assign({},n,{breaks:b}));});
         if($("be"))$("be").onclick=()=>act(()=>{const b=(n.breaks||[]).slice();b[b.length-1]=Object.assign({},b[b.length-1],{e:nowHM()});return saveRec(s.name,Object.assign({},n,{breaks:b}));});
-        if($("out"))$("out").onclick=()=>act(()=>saveRec(s.name,Object.assign({},n,{out:nowHM()})));
+        if($("out"))$("out").onclick=()=>{
+          // 出勤してすぐの退勤は押し間違いを疑って確認する
+          const i=toMin(n.in), now=toMin(nowHM());
+          if(i!=null && now-i<SHORT_MIN && !confirm('出勤してから'+(now-i)+'分しか経っていません。\n退勤を記録しますか？')) return;
+          act(()=>saveRec(s.name,Object.assign({},n,{out:nowHM()})));
+        };
+        if($("undo"))$("undo").onclick=()=>{
+          if(!confirm('退勤の記録を取り消して「勤務中」に戻します。よろしいですか？')) return;
+          act(()=>saveRec(s.name,Object.assign({},n,{out:null})));
+        };
         if($("home"))$("home").onclick=renderTop;
+        // 打刻した直後はボタンを押せなくする（画面が切り替わった瞬間の二度押し対策）
+        const remain=lockUntil-Date.now();
+        if(remain>0){
+          const bs=body.querySelectorAll('button');
+          bs.forEach(b=>{b.disabled=true;b.style.opacity='.45';});
+          setTimeout(()=>bs.forEach(b=>{b.disabled=false;b.style.opacity='';}),remain);
+        }
       }
       function flash(t){const m=$("msg");if(!m)return;m.className="msg ok";m.textContent=t;setTimeout(()=>{if(m)m.className="msg";},2500);}
       function err(t){const m=$("msg");if(!m)return;m.className="msg err";m.textContent=t;}
